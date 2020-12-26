@@ -546,7 +546,16 @@ impl<B: GfxBackend> Device<B> {
             return Err(resource::CreateTextureError::EmptyUsage);
         }
 
-        let missing_features = desc.usage - format_desc.allowed_usages;
+        let allowed_usages = if format_desc.optional_storage_support
+            && self
+                .features
+                .contains(wgt::Features::STORAGE_TEXTURE_EXTENDED_FORMATS)
+        {
+            format_desc.allowed_usages | wgt::TextureUsage::STORAGE
+        } else {
+            format_desc.allowed_usages
+        };
+        let missing_features = desc.usage - allowed_usages;
         if !missing_features.is_empty() {
             return Err(resource::CreateTextureError::InvalidUsages(
                 missing_features,
@@ -1311,8 +1320,13 @@ impl<B: GfxBackend> Device<B> {
                                     resource::TextureUse::STORAGE_STORE
                                 }
                                 wgt::StorageTextureAccess::ReadWrite => {
-                                    if !self.features.contains(wgt::Features::STORAGE_TEXTURE_ACCESS_READ_WRITE) {
-                                        return Err(Error::MissingFeatures(wgt::Features::STORAGE_TEXTURE_ACCESS_READ_WRITE));
+                                    if !self
+                                        .features
+                                        .contains(wgt::Features::STORAGE_TEXTURE_ACCESS_READ_WRITE)
+                                    {
+                                        return Err(Error::MissingFeatures(
+                                            wgt::Features::STORAGE_TEXTURE_ACCESS_READ_WRITE,
+                                        ));
                                     }
                                     resource::TextureUse::STORAGE_STORE
                                         | resource::TextureUse::STORAGE_LOAD

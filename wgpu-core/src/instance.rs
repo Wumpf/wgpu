@@ -178,6 +178,10 @@ impl<B: GfxBackend> Adapter<B> {
             wgt::Features::NON_FILL_POLYGON_MODE,
             adapter_features.contains(hal::Features::NON_FILL_POLYGON_MODE),
         );
+        features.set(
+            wgt::Features::STORAGE_TEXTURE_EXTENDED_FORMATS,
+            adapter_features.contains(hal::Features::SHADER_STORAGE_IMAGE_EXTENDED_FORMATS),
+        );
         #[cfg(not(target_os = "ios"))]
         //TODO: https://github.com/gfx-rs/gfx/issues/3346
         features.set(wgt::Features::ADDRESS_MODE_CLAMP_TO_BORDER, true);

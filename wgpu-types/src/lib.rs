@@ -352,6 +352,20 @@ bitflags::bitflags! {
         ///
         /// This is a native-only feature.
         const STORAGE_TEXTURE_ACCESS_READ_WRITE = 0x0000_0000_1000_0000;
+        /// Enables support for additional storage formats
+        ///
+        /// Additionally supported formats are:
+        /// - all normal 8 bit textures (R8Uint/Sint/Unorm/Snorm)
+        /// - all normal 16 bit formats (Rg8Uint/Sint/Unorm/Snorm, R16Uint/Sint/Float)
+        /// - all non-srgb, non-bgra 32 bit formats (Rg16Uint/Sint/Float, others are always supported)
+        /// - all packed 32 bit textures with 4 channels (Rg11b10Float, Rgb10a2Unorm)
+        ///
+        /// Supported platforms:
+        /// - DX12 (optional)
+        /// - Vulkan (optional, maps to shaderStorageImageExtendedFormats feature)
+        ///
+        /// This is a native-only feature.
+        const STORAGE_TEXTURE_EXTENDED_FORMATS = 0x0000_0000_2000_0000;
         /// Features which are part of the upstream WebGPU standard.
         const ALL_WEBGPU = 0x0000_0000_0000_FFFF;
         /// Features that are only available when targeting native (not web).
@@ -789,6 +803,8 @@ pub struct TextureFormatInfo {
     pub block_size: u8,
     /// Format will have colors be converted from srgb to linear on read and from linear to srgb on write.
     pub srgb: bool,
+    /// Format is not allowed as to be used as STORAGE unless `Features::STORAGE_TEXTURE_EXTENDED_FORMATS` is enabled.
+    pub optional_storage_support: bool,
     /// Allowed usage flags for the format.
     pub allowed_usages: TextureUsage,
 }
@@ -1207,117 +1223,124 @@ impl TextureFormat {
         let all_flags = TextureUsage::all();
 
         // See https://gpuweb.github.io/gpuweb/#texture-format-caps for reference
-        let (features, sample_type, srgb, block_dimensions, block_size, allowed_usages) = match self
-        {
+        let (
+            features,
+            sample_type,
+            srgb,
+            block_dimensions,
+            block_size,
+            optional_storage_support,
+            allowed_usages,
+        ) = match self {
             // Normal 8 bit textures
-            Self::R8Unorm => (native, float, linear, (1, 1), 1, attachment),
-            Self::R8Snorm => (native, float, linear, (1, 1), 1, basic),
-            Self::R8Uint => (native, uint, linear, (1, 1), 1, attachment),
-            Self::R8Sint => (native, sint, linear, (1, 1), 1, attachment),
+            Self::R8Unorm => (native, float, linear, (1, 1), 1, true, attachment),
+            Self::R8Snorm => (native, float, linear, (1, 1), 1, true, basic),
+            Self::R8Uint => (native, uint, linear, (1, 1), 1, true, attachment),
+            Self::R8Sint => (native, sint, linear, (1, 1), 1, true, attachment),
 
             // Normal 16 bit textures
-            Self::R16Uint => (native, uint, linear, (1, 1), 2, attachment),
-            Self::R16Sint => (native, sint, linear, (1, 1), 2, attachment),
-            Self::R16Float => (native, float, linear, (1, 1), 2, attachment),
-            Self::Rg8Unorm => (native, float, linear, (1, 1), 2, attachment),
-            Self::Rg8Snorm => (native, float, linear, (1, 1), 2, attachment),
-            Self::Rg8Uint => (native, uint, linear, (1, 1), 2, attachment),
-            Self::Rg8Sint => (native, sint, linear, (1, 1), 2, basic),
+            Self::R16Uint => (native, uint, linear, (1, 1), 2, true, attachment),
+            Self::R16Sint => (native, sint, linear, (1, 1), 2, true, attachment),
+            Self::R16Float => (native, float, linear, (1, 1), 2, true, attachment),
+            Self::Rg8Unorm => (native, float, linear, (1, 1), 2, true, attachment),
+            Self::Rg8Snorm => (native, float, linear, (1, 1), 2, true, attachment),
+            Self::Rg8Uint => (native, uint, linear, (1, 1), 2, true, attachment),
+            Self::Rg8Sint => (native, sint, linear, (1, 1), 2, true, basic),
 
             // Normal 32 bit textures
-            Self::R32Uint => (native, uint, linear, (1, 1), 4, all_flags),
-            Self::R32Sint => (native, sint, linear, (1, 1), 4, all_flags),
-            Self::R32Float => (native, nearest, linear, (1, 1), 4, all_flags),
-            Self::Rg16Uint => (native, uint, linear, (1, 1), 4, attachment),
-            Self::Rg16Sint => (native, sint, linear, (1, 1), 4, attachment),
-            Self::Rg16Float => (native, float, linear, (1, 1), 4, attachment),
-            Self::Rgba8Unorm => (native, float, linear, (1, 1), 4, all_flags),
-            Self::Rgba8UnormSrgb => (native, float, srgb, (1, 1), 4, attachment),
-            Self::Rgba8Snorm => (native, float, linear, (1, 1), 4, storage),
-            Self::Rgba8Uint => (native, uint, linear, (1, 1), 4, all_flags),
-            Self::Rgba8Sint => (native, sint, linear, (1, 1), 4, all_flags),
-            Self::Bgra8Unorm => (native, float, linear, (1, 1), 4, attachment),
-            Self::Bgra8UnormSrgb => (native, float, srgb, (1, 1), 4, attachment),
+            Self::R32Uint => (native, uint, linear, (1, 1), 4, false, all_flags),
+            Self::R32Sint => (native, sint, linear, (1, 1), 4, false, all_flags),
+            Self::R32Float => (native, nearest, linear, (1, 1), 4, false, all_flags),
+            Self::Rg16Uint => (native, uint, linear, (1, 1), 4, true, attachment),
+            Self::Rg16Sint => (native, sint, linear, (1, 1), 4, true, attachment),
+            Self::Rg16Float => (native, float, linear, (1, 1), 4, true, attachment),
+            Self::Rgba8Unorm => (native, float, linear, (1, 1), 4, false, all_flags),
+            Self::Rgba8UnormSrgb => (native, float, srgb, (1, 1), 4, false, attachment),
+            Self::Rgba8Snorm => (native, float, linear, (1, 1), 4, false, storage),
+            Self::Rgba8Uint => (native, uint, linear, (1, 1), 4, false, all_flags),
+            Self::Rgba8Sint => (native, sint, linear, (1, 1), 4, false, all_flags),
+            Self::Bgra8Unorm => (native, float, linear, (1, 1), 4, false, attachment),
+            Self::Bgra8UnormSrgb => (native, float, srgb, (1, 1), 4, false, attachment),
 
             // Packed 32 bit textures
-            Self::Rgb10a2Unorm => (native, float, linear, (1, 1), 4, attachment),
-            Self::Rg11b10Float => (native, float, linear, (1, 1), 4, basic),
+            Self::Rgb10a2Unorm => (native, float, linear, (1, 1), 4, true, attachment),
+            Self::Rg11b10Float => (native, float, linear, (1, 1), 4, true, basic),
 
             // Packed 32 bit textures
-            Self::Rg32Uint => (native, uint, linear, (1, 1), 8, all_flags),
-            Self::Rg32Sint => (native, sint, linear, (1, 1), 8, all_flags),
-            Self::Rg32Float => (native, nearest, linear, (1, 1), 8, all_flags),
-            Self::Rgba16Uint => (native, uint, linear, (1, 1), 8, all_flags),
-            Self::Rgba16Sint => (native, sint, linear, (1, 1), 8, all_flags),
-            Self::Rgba16Float => (native, float, linear, (1, 1), 8, all_flags),
+            Self::Rg32Uint => (native, uint, linear, (1, 1), 8, false, all_flags),
+            Self::Rg32Sint => (native, sint, linear, (1, 1), 8, false, all_flags),
+            Self::Rg32Float => (native, nearest, linear, (1, 1), 8, false, all_flags),
+            Self::Rgba16Uint => (native, uint, linear, (1, 1), 8, false, all_flags),
+            Self::Rgba16Sint => (native, sint, linear, (1, 1), 8, false, all_flags),
+            Self::Rgba16Float => (native, float, linear, (1, 1), 8, false, all_flags),
 
             // Packed 32 bit textures
-            Self::Rgba32Uint => (native, uint, linear, (1, 1), 16, all_flags),
-            Self::Rgba32Sint => (native, sint, linear, (1, 1), 16, all_flags),
-            Self::Rgba32Float => (native, nearest, linear, (1, 1), 16, all_flags),
+            Self::Rgba32Uint => (native, uint, linear, (1, 1), 16, false, all_flags),
+            Self::Rgba32Sint => (native, sint, linear, (1, 1), 16, false, all_flags),
+            Self::Rgba32Float => (native, nearest, linear, (1, 1), 16, false, all_flags),
 
             // Depth-stencil textures
-            Self::Depth32Float => (native, depth, linear, (1, 1), 4, attachment),
-            Self::Depth24Plus => (native, depth, linear, (1, 1), 4, attachment),
-            Self::Depth24PlusStencil8 => (native, depth, linear, (1, 1), 4, attachment),
+            Self::Depth32Float => (native, depth, linear, (1, 1), 4, false, attachment),
+            Self::Depth24Plus => (native, depth, linear, (1, 1), 4, false, attachment),
+            Self::Depth24PlusStencil8 => (native, depth, linear, (1, 1), 4, false, attachment),
 
             // BCn compressed textures
-            Self::Bc1RgbaUnorm => (bc, float, linear, (4, 4), 8, basic),
-            Self::Bc1RgbaUnormSrgb => (bc, float, srgb, (4, 4), 8, basic),
-            Self::Bc2RgbaUnorm => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc2RgbaUnormSrgb => (bc, float, srgb, (4, 4), 16, basic),
-            Self::Bc3RgbaUnorm => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc3RgbaUnormSrgb => (bc, float, srgb, (4, 4), 16, basic),
-            Self::Bc4RUnorm => (bc, float, linear, (4, 4), 8, basic),
-            Self::Bc4RSnorm => (bc, float, linear, (4, 4), 8, basic),
-            Self::Bc5RgUnorm => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc5RgSnorm => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc6hRgbUfloat => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc6hRgbSfloat => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc7RgbaUnorm => (bc, float, linear, (4, 4), 16, basic),
-            Self::Bc7RgbaUnormSrgb => (bc, float, srgb, (4, 4), 16, basic),
+            Self::Bc1RgbaUnorm => (bc, float, linear, (4, 4), 8, false, basic),
+            Self::Bc1RgbaUnormSrgb => (bc, float, srgb, (4, 4), 8, false, basic),
+            Self::Bc2RgbaUnorm => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc2RgbaUnormSrgb => (bc, float, srgb, (4, 4), 16, false, basic),
+            Self::Bc3RgbaUnorm => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc3RgbaUnormSrgb => (bc, float, srgb, (4, 4), 16, false, basic),
+            Self::Bc4RUnorm => (bc, float, linear, (4, 4), 8, false, basic),
+            Self::Bc4RSnorm => (bc, float, linear, (4, 4), 8, false, basic),
+            Self::Bc5RgUnorm => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc5RgSnorm => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc6hRgbUfloat => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc6hRgbSfloat => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc7RgbaUnorm => (bc, float, linear, (4, 4), 16, false, basic),
+            Self::Bc7RgbaUnormSrgb => (bc, float, srgb, (4, 4), 16, false, basic),
 
             // ETC compressed textures
-            Self::Etc2RgbUnorm => (etc2, float, linear, (4, 4), 8, basic),
-            Self::Etc2RgbUnormSrgb => (etc2, float, srgb, (4, 4), 8, basic),
-            Self::Etc2RgbA1Unorm => (etc2, float, linear, (4, 4), 8, basic),
-            Self::Etc2RgbA1UnormSrgb => (etc2, float, srgb, (4, 4), 8, basic),
-            Self::Etc2RgbA8Unorm => (etc2, float, linear, (4, 4), 16, basic),
-            Self::Etc2RgbA8UnormSrgb => (etc2, float, srgb, (4, 4), 16, basic),
-            Self::EacRUnorm => (etc2, float, linear, (4, 4), 8, basic),
-            Self::EacRSnorm => (etc2, float, linear, (4, 4), 8, basic),
-            Self::EtcRgUnorm => (etc2, float, linear, (4, 4), 16, basic),
-            Self::EtcRgSnorm => (etc2, float, linear, (4, 4), 16, basic),
+            Self::Etc2RgbUnorm => (etc2, float, linear, (4, 4), 8, false, basic),
+            Self::Etc2RgbUnormSrgb => (etc2, float, srgb, (4, 4), 8, false, basic),
+            Self::Etc2RgbA1Unorm => (etc2, float, linear, (4, 4), 8, false, basic),
+            Self::Etc2RgbA1UnormSrgb => (etc2, float, srgb, (4, 4), 8, false, basic),
+            Self::Etc2RgbA8Unorm => (etc2, float, linear, (4, 4), 16, false, basic),
+            Self::Etc2RgbA8UnormSrgb => (etc2, float, srgb, (4, 4), 16, false, basic),
+            Self::EacRUnorm => (etc2, float, linear, (4, 4), 8, false, basic),
+            Self::EacRSnorm => (etc2, float, linear, (4, 4), 8, false, basic),
+            Self::EtcRgUnorm => (etc2, float, linear, (4, 4), 16, false, basic),
+            Self::EtcRgSnorm => (etc2, float, linear, (4, 4), 16, false, basic),
 
             // ASTC compressed textures
-            Self::Astc4x4RgbaUnorm => (astc_ldr, float, linear, (4, 4), 16, basic),
-            Self::Astc4x4RgbaUnormSrgb => (astc_ldr, float, srgb, (4, 4), 16, basic),
-            Self::Astc5x4RgbaUnorm => (astc_ldr, float, linear, (5, 4), 16, basic),
-            Self::Astc5x4RgbaUnormSrgb => (astc_ldr, float, srgb, (5, 4), 16, basic),
-            Self::Astc5x5RgbaUnorm => (astc_ldr, float, linear, (5, 5), 16, basic),
-            Self::Astc5x5RgbaUnormSrgb => (astc_ldr, float, srgb, (5, 5), 16, basic),
-            Self::Astc6x5RgbaUnorm => (astc_ldr, float, linear, (6, 5), 16, basic),
-            Self::Astc6x5RgbaUnormSrgb => (astc_ldr, float, srgb, (6, 5), 16, basic),
-            Self::Astc6x6RgbaUnorm => (astc_ldr, float, linear, (6, 6), 16, basic),
-            Self::Astc6x6RgbaUnormSrgb => (astc_ldr, float, srgb, (6, 6), 16, basic),
-            Self::Astc8x5RgbaUnorm => (astc_ldr, float, linear, (8, 5), 16, basic),
-            Self::Astc8x5RgbaUnormSrgb => (astc_ldr, float, srgb, (8, 5), 16, basic),
-            Self::Astc8x6RgbaUnorm => (astc_ldr, float, linear, (8, 6), 16, basic),
-            Self::Astc8x6RgbaUnormSrgb => (astc_ldr, float, srgb, (8, 6), 16, basic),
-            Self::Astc10x5RgbaUnorm => (astc_ldr, float, linear, (10, 5), 16, basic),
-            Self::Astc10x5RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 5), 16, basic),
-            Self::Astc10x6RgbaUnorm => (astc_ldr, float, linear, (10, 6), 16, basic),
-            Self::Astc10x6RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 6), 16, basic),
-            Self::Astc8x8RgbaUnorm => (astc_ldr, float, linear, (8, 8), 16, basic),
-            Self::Astc8x8RgbaUnormSrgb => (astc_ldr, float, srgb, (8, 8), 16, basic),
-            Self::Astc10x8RgbaUnorm => (astc_ldr, float, linear, (10, 8), 16, basic),
-            Self::Astc10x8RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 8), 16, basic),
-            Self::Astc10x10RgbaUnorm => (astc_ldr, float, linear, (10, 10), 16, basic),
-            Self::Astc10x10RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 10), 16, basic),
-            Self::Astc12x10RgbaUnorm => (astc_ldr, float, linear, (12, 10), 16, basic),
-            Self::Astc12x10RgbaUnormSrgb => (astc_ldr, float, srgb, (12, 10), 16, basic),
-            Self::Astc12x12RgbaUnorm => (astc_ldr, float, linear, (12, 12), 16, basic),
-            Self::Astc12x12RgbaUnormSrgb => (astc_ldr, float, srgb, (12, 12), 16, basic),
+            Self::Astc4x4RgbaUnorm => (astc_ldr, float, linear, (4, 4), 16, false, basic),
+            Self::Astc4x4RgbaUnormSrgb => (astc_ldr, float, srgb, (4, 4), 16, false, basic),
+            Self::Astc5x4RgbaUnorm => (astc_ldr, float, linear, (5, 4), 16, false, basic),
+            Self::Astc5x4RgbaUnormSrgb => (astc_ldr, float, srgb, (5, 4), 16, false, basic),
+            Self::Astc5x5RgbaUnorm => (astc_ldr, float, linear, (5, 5), 16, false, basic),
+            Self::Astc5x5RgbaUnormSrgb => (astc_ldr, float, srgb, (5, 5), 16, false, basic),
+            Self::Astc6x5RgbaUnorm => (astc_ldr, float, linear, (6, 5), 16, false, basic),
+            Self::Astc6x5RgbaUnormSrgb => (astc_ldr, float, srgb, (6, 5), 16, false, basic),
+            Self::Astc6x6RgbaUnorm => (astc_ldr, float, linear, (6, 6), 16, false, basic),
+            Self::Astc6x6RgbaUnormSrgb => (astc_ldr, float, srgb, (6, 6), 16, false, basic),
+            Self::Astc8x5RgbaUnorm => (astc_ldr, float, linear, (8, 5), 16, false, basic),
+            Self::Astc8x5RgbaUnormSrgb => (astc_ldr, float, srgb, (8, 5), 16, false, basic),
+            Self::Astc8x6RgbaUnorm => (astc_ldr, float, linear, (8, 6), 16, false, basic),
+            Self::Astc8x6RgbaUnormSrgb => (astc_ldr, float, srgb, (8, 6), 16, false, basic),
+            Self::Astc10x5RgbaUnorm => (astc_ldr, float, linear, (10, 5), 16, false, basic),
+            Self::Astc10x5RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 5), 16, false, basic),
+            Self::Astc10x6RgbaUnorm => (astc_ldr, float, linear, (10, 6), 16, false, basic),
+            Self::Astc10x6RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 6), 16, false, basic),
+            Self::Astc8x8RgbaUnorm => (astc_ldr, float, linear, (8, 8), 16, false, basic),
+            Self::Astc8x8RgbaUnormSrgb => (astc_ldr, float, srgb, (8, 8), 16, false, basic),
+            Self::Astc10x8RgbaUnorm => (astc_ldr, float, linear, (10, 8), 16, false, basic),
+            Self::Astc10x8RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 8), 16, false, basic),
+            Self::Astc10x10RgbaUnorm => (astc_ldr, float, linear, (10, 10), 16, false, basic),
+            Self::Astc10x10RgbaUnormSrgb => (astc_ldr, float, srgb, (10, 10), 16, false, basic),
+            Self::Astc12x10RgbaUnorm => (astc_ldr, float, linear, (12, 10), 16, false, basic),
+            Self::Astc12x10RgbaUnormSrgb => (astc_ldr, float, srgb, (12, 10), 16, false, basic),
+            Self::Astc12x12RgbaUnorm => (astc_ldr, float, linear, (12, 12), 16, false, basic),
+            Self::Astc12x12RgbaUnormSrgb => (astc_ldr, float, srgb, (12, 12), 16, false, basic),
         };
 
         TextureFormatInfo {
@@ -1326,6 +1349,7 @@ impl TextureFormat {
             block_dimensions,
             block_size,
             srgb,
+            optional_storage_support,
             allowed_usages,
         }
     }
