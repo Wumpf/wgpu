@@ -808,12 +808,6 @@ impl<G: GlobalIdentityHandlerFactory> Global<G> {
                 }
             }
 
-            let callbacks = match device.maintain(&hub, false, &mut token) {
-                Ok(callbacks) => callbacks,
-                Err(WaitIdleError::Device(err)) => return Err(QueueSubmitError::Queue(err)),
-                Err(WaitIdleError::StuckGpu) => return Err(QueueSubmitError::StuckGpu),
-            };
-
             device.temp_suspected.clear();
 
             profiling::scope!("cleanup");
@@ -830,7 +824,11 @@ impl<G: GlobalIdentityHandlerFactory> Global<G> {
                 active_executions,
             );
 
-            callbacks
+            match device.maintain(&hub, false, &mut token) {
+                Ok(callbacks) => callbacks,
+                Err(WaitIdleError::Device(err)) => return Err(QueueSubmitError::Queue(err)),
+                Err(WaitIdleError::StuckGpu) => return Err(QueueSubmitError::StuckGpu),
+            }
         };
 
         // the map callbacks should execute with nothing locked!
