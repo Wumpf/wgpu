@@ -1786,6 +1786,14 @@ impl<B: GfxBackend> Device<B> {
         }
 
         if let Some(start_binding) = write_map.keys().next().cloned() {
+            let mut desc_sets = self.desc_allocator.lock().allocate(
+                &self.raw,
+                &layout.raw,
+                &layout.desc_count,
+                1,
+            )?;
+            let mut desc_set = desc_sets.pop().unwrap();
+
             let descriptors = write_map.into_iter().flat_map(|(_, list)| list);
             unsafe {
                 let write = hal::pso::DescriptorSetWrite {
