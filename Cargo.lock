@@ -3214,6 +3214,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "wgpu-occlusion-query-example"
+version = "0.17.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "log",
+ "wasm-bindgen-test",
+ "wgpu",
+ "wgpu-example",
+ "wgpu-test",
+ "winit",
+]
+
+[[package]]
 name = "wgpu-shadow-example"
 version = "0.17.0"
 dependencies = [

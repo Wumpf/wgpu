@@ -1,0 +1,24 @@
+[package]
+name = "wgpu-occlusion-query-example"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+description = "wgpu occlusion query example"
+publish = false
+
+[[bin]]
+name = "occlusion-query"
+path = "src/main.rs"
+
+[dependencies]
+bytemuck.workspace = true
+glam.workspace = true
+log.workspace = true
+wasm-bindgen-test.workspace = true
+wgpu-example.workspace = true
+wgpu.workspace = true
+winit.workspace = true
+
+[dev-dependencies]
+wgpu-test.workspace = true
+
