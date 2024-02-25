@@ -264,7 +264,7 @@ pub struct Buffer {
     context: Arc<C>,
     id: ObjectId,
     data: Box<Data>,
-    map_context: Mutex<MapContext>,
+    map_context: Arc<Mutex<MapContext>>,
     size: wgt::BufferAddress,
     usage: BufferUsages,
     // Todo: missing map_state https://www.w3.org/TR/webgpu/#dom-gpubuffer-mapstate
@@ -280,14 +280,14 @@ static_assertions::assert_impl_all!(Buffer: Send, Sync);
 ///
 /// This type is unique to the Rust API of `wgpu`. In the WebGPU specification,
 /// an offset and size are specified as arguments to each call working with the [`Buffer`], instead.
-#[derive(Copy, Clone, Debug)]
-pub struct BufferSlice<'a> {
-    buffer: &'a Buffer,
+#[derive(Copy, Debug)]
+pub struct BufferSlice {
+    map_context: Arc<Mutex<MapContext>>,
     offset: BufferAddress,
     size: Option<BufferSize>,
 }
 #[cfg(send_sync)]
-static_assertions::assert_impl_all!(BufferSlice<'_>: Send, Sync);
+static_assertions::assert_impl_all!(BufferSlice: Send, Sync);
 
 /// Handle to a texture on the GPU.
 ///
@@ -2493,7 +2493,7 @@ impl Device {
             context: Arc::clone(&self.context),
             id,
             data,
-            map_context: Mutex::new(map_context),
+            map_context: Arc::new(Mutex::new(map_context)),
             size: desc.size,
             usage: desc.usage,
         }
@@ -2593,7 +2593,7 @@ impl Device {
             context: Arc::clone(&self.context),
             id: ObjectId::from(id),
             data: Box::new(buffer),
-            map_context: Mutex::new(map_context),
+            map_context: Arc::new(Mutex::new(map_context)),
             size: desc.size,
             usage: desc.usage,
         }
@@ -2874,8 +2874,8 @@ fn range_to_offset_size<S: RangeBounds<BufferAddress>>(
 
 /// Read only view into a mapped buffer.
 #[derive(Debug)]
-pub struct BufferView<'a> {
-    slice: BufferSlice<'a>,
+pub struct BufferView {
+    slice: BufferSlice,
     data: Box<dyn crate::context::BufferMappedRange>,
 }
 
@@ -2884,13 +2884,13 @@ pub struct BufferView<'a> {
 /// It is possible to read the buffer using this view, but doing so is not
 /// recommended, as it is likely to be slow.
 #[derive(Debug)]
-pub struct BufferViewMut<'a> {
-    slice: BufferSlice<'a>,
+pub struct BufferViewMut {
+    slice: BufferSlice,
     data: Box<dyn crate::context::BufferMappedRange>,
     readable: bool,
 }
 
-impl std::ops::Deref for BufferView<'_> {
+impl std::ops::Deref for BufferView {
     type Target = [u8];
 
     #[inline]
@@ -2899,21 +2899,21 @@ impl std::ops::Deref for BufferView<'_> {
     }
 }
 
-impl AsRef<[u8]> for BufferView<'_> {
+impl AsRef<[u8]> for BufferView {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         self.data.slice()
     }
 }
 
-impl AsMut<[u8]> for BufferViewMut<'_> {
+impl AsMut<[u8]> for BufferViewMut {
     #[inline]
     fn as_mut(&mut self) -> &mut [u8] {
         self.data.slice_mut()
     }
 }
 
-impl Deref for BufferViewMut<'_> {
+impl Deref for BufferViewMut {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -2925,27 +2925,23 @@ impl Deref for BufferViewMut<'_> {
     }
 }
 
-impl DerefMut for BufferViewMut<'_> {
+impl DerefMut for BufferViewMut {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data.slice_mut()
     }
 }
 
-impl Drop for BufferView<'_> {
+impl Drop for BufferView {
     fn drop(&mut self) {
-        self.slice
-            .buffer
-            .map_context
+        self.map_context
             .lock()
             .remove(self.slice.offset, self.slice.size);
     }
 }
 
-impl Drop for BufferViewMut<'_> {
+impl Drop for BufferViewMut {
     fn drop(&mut self) {
-        self.slice
-            .buffer
-            .map_context
+        self.map_context
             .lock()
             .remove(self.slice.offset, self.slice.size);
     }
@@ -2968,23 +2964,28 @@ impl Buffer {
 
     /// Use only a portion of this Buffer for a given operation. Choosing a range with no end
     /// will use the rest of the buffer. Using a totally unbounded range will use the entire buffer.
-    pub fn slice<S: RangeBounds<BufferAddress>>(&self, bounds: S) -> BufferSlice<'_> {
+    pub fn slice<S: RangeBounds<BufferAddress>>(&self, bounds: S) -> BufferSlice {
         let (offset, size) = range_to_offset_size(bounds);
         BufferSlice {
-            buffer: self,
+            map_context: self.map_context.clone(),
             offset,
             size,
         }
     }
 
     /// Flushes any pending write operations and unmaps the buffer from host memory.
+    ///
+    /// Panics if there's still any [`BufferSlice`], [`BufferView`] or [`BufferViewMut`] alive.
     pub fn unmap(&self) {
         self.map_context.lock().reset();
         DynContext::buffer_unmap(&*self.context, &self.id, self.data.as_ref());
     }
 
     /// Destroy the associated native resources as soon as possible.
+    ///
+    /// Panics if there's still any [`BufferSlice`], [`BufferView`] or [`BufferViewMut`] alive.
     pub fn destroy(&self) {
+        self.map_context.lock().reset();
         DynContext::buffer_destroy(&*self.context, &self.id, self.data.as_ref());
     }
 
@@ -3043,7 +3044,7 @@ impl<'a> BufferSlice<'a> {
 
     /// Synchronously and immediately map a buffer for reading. If the buffer is not immediately mappable
     /// through [`BufferDescriptor::mapped_at_creation`] or [`BufferSlice::map_async`], will panic.
-    pub fn get_mapped_range(&self) -> BufferView<'a> {
+    pub fn get_mapped_range(&self) -> BufferView {
         let end = self.buffer.map_context.lock().add(self.offset, self.size);
         let data = DynContext::buffer_get_mapped_range(
             &*self.buffer.context,
@@ -3077,7 +3078,7 @@ impl<'a> BufferSlice<'a> {
 
     /// Synchronously and immediately map a buffer for writing. If the buffer is not immediately mappable
     /// through [`BufferDescriptor::mapped_at_creation`] or [`BufferSlice::map_async`], will panic.
-    pub fn get_mapped_range_mut(&self) -> BufferViewMut<'a> {
+    pub fn get_mapped_range_mut(&self) -> BufferViewMut {
         let end = self.buffer.map_context.lock().add(self.offset, self.size);
         let data = DynContext::buffer_get_mapped_range(
             &*self.buffer.context,
