@@ -236,7 +236,6 @@ impl ComputepassState {
                     module: &sm,
                     entry_point: "cs_main",
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    cache: None,
                 });
 
         let (bindless_bind_group, bindless_pipeline) = if supports_bindless {
@@ -331,7 +330,6 @@ impl ComputepassState {
                         module: &bindless_sm,
                         entry_point: "cs_main",
                         compilation_options: wgpu::PipelineCompilationOptions::default(),
-                        cache: None,
                     });
 
             (Some(bindless_bind_group), Some(bindless_pipeline))
