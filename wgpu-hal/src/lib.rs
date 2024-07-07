@@ -266,6 +266,14 @@ pub mod api {
     pub use super::vulkan::Api as Vulkan;
 }
 
+mod dyndevice;
+pub use dyndevice::{
+    DynAccelerationStructure, DynAdapter, DynBindGroup, DynBindGroupLayout, DynBuffer,
+    DynCommandBuffer, DynCommandEncoder, DynComputePipeline, DynDevice, DynFence, DynInstance,
+    DynPipelineLayout, DynQuerySet, DynQueue, DynRenderPipeline, DynSampler, DynShaderModule,
+    DynSurface, DynSurfaceTexture, DynTexture, DynTextureView,
+};
+
 use std::{
     borrow::{Borrow, Cow},
     fmt,
@@ -424,7 +432,7 @@ pub trait Api: Clone + fmt::Debug + Sized {
     /// before a lower-valued operation, then waiting for the fence to reach the
     /// lower value could return before the lower-valued operation has actually
     /// finished.
-    type Fence: fmt::Debug + WasmNotSendSync;
+    type Fence: fmt::Debug + WasmNotSendSync + 'static;
 
     type BindGroupLayout: fmt::Debug + WasmNotSendSync;
     type BindGroup: fmt::Debug + WasmNotSendSync;
