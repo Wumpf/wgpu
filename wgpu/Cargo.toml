@@ -21,6 +21,9 @@ targets = [
     "wasm32-unknown-unknown",
 ]
 
+[lints]
+workspace = true
+
 [package.metadata.cargo-machete]
 # Cargo machete can't check build.rs dependencies. See https://github.com/bnjbvr/cargo-machete/issues/100
 ignored = ["cfg_aliases"]

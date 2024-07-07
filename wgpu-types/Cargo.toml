@@ -25,6 +25,9 @@ targets = [
     "wasm32-unknown-unknown",
 ]
 
+[lints]
+workspace = true
+
 [lib]
 
 [features]

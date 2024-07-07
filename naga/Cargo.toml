@@ -19,6 +19,9 @@ path = "tests/root.rs"
 [package.metadata.docs.rs]
 all-features = true
 
+[lints]
+workspace = true
+
 [features]
 default = []
 dot-out = []

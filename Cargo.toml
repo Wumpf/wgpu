@@ -50,6 +50,9 @@ repository = "https://github.com/gfx-rs/wgpu"
 version = "0.20.0"
 authors = ["gfx-rs developers"]
 
+[workspace.lints.clippy]
+tests_outside_test_module = "warn"
+
 [workspace.dependencies.wgc]
 package = "wgpu-core"
 path = "./wgpu-core"
