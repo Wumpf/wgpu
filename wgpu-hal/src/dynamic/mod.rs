@@ -1,6 +1,37 @@
 use crate::{BufferMapping, Device, DeviceError, FenceValue, MemoryRange};
 
-pub trait DynInstance {}
+mod instance;
+
+#[derive(Clone, Debug)]
+pub struct Api;
+
+impl crate::Api for Api {
+    type Instance = dyn instance::DynInstance;
+    type Surface = dyn DynSurface;
+    type Adapter = dyn DynAdapter;
+    type Device = dyn DynDevice;
+
+    type Queue = dyn DynQueue;
+    type CommandEncoder = dyn DynCommandEncoder;
+    type CommandBuffer = dyn DynCommandBuffer;
+
+    type Buffer = dyn DynBuffer;
+    type Texture = dyn DynTexture;
+    type SurfaceTexture = dyn DynSurfaceTexture;
+    type TextureView = dyn DynTextureView;
+    type Sampler = dyn DynSampler;
+    type QuerySet = dyn DynQuerySet;
+    type Fence = dyn DynFence;
+    type AccelerationStructure = dyn DynAccelerationStructure;
+    type PipelineCache = dyn DynPipelineCache;
+
+    type BindGroupLayout = dyn DynBindGroupLayout;
+    type BindGroup = dyn DynBindGroup;
+    type PipelineLayout = dyn DynPipelineLayout;
+    type ShaderModule = dyn DynShaderModule;
+    type RenderPipeline = dyn DynRenderPipeline;
+    type ComputePipeline = dyn DynComputePipeline;
+}
 
 pub trait DynQueue {}
 
@@ -22,16 +53,6 @@ pub trait DynSurfaceTexture {}
 
 pub trait DynBindGroup {}
 
-pub trait DynBindGroupLayout {}
-
-pub trait DynPipelineLayout {}
-
-pub trait DynShaderModule {}
-
-pub trait DynRenderPipeline {}
-
-pub trait DynComputePipeline {}
-
 pub trait DynCommandBuffer {}
 
 pub trait DynSampler {}
@@ -43,6 +64,18 @@ pub trait DynFence {
 }
 
 pub trait DynAccelerationStructure {}
+
+pub trait DynPipelineCache {}
+
+pub trait DynBindGroupLayout {}
+
+pub trait DynPipelineLayout {}
+
+pub trait DynShaderModule {}
+
+pub trait DynRenderPipeline {}
+
+pub trait DynComputePipeline {}
 
 pub trait DynDevice {
     unsafe fn map_buffer(

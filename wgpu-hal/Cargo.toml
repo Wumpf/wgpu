@@ -37,6 +37,9 @@ ignored = ["cfg_aliases"]
 [lib]
 
 [features]
+## TODO: DONT SHIP
+default = ["dynamic"]
+
 metal = ["naga/msl-out", "dep:block"]
 vulkan = [
     "naga/spv-out",
@@ -70,6 +73,12 @@ dx12 = [
     "winapi/dxgi1_6",
     "winapi/errhandlingapi",
 ]
+
+## Dynamically dispatching backend.
+##
+## A type erased backend that dispatches to a concrete backend at runtime.
+dynamic = []
+
 # TODO: This is a separate feature until Mozilla okays windows-rs, see https://github.com/gfx-rs/wgpu/issues/3207 for the tracking issue.
 windows_rs = ["dep:gpu-allocator"]
 dxc_shader_compiler = ["dep:hassle-rs"]

@@ -241,6 +241,9 @@
 /// DirectX12 API internals.
 #[cfg(dx12)]
 pub mod dx12;
+/// Dynamically dispatching backend.
+#[cfg(dynamic)]
+pub mod dynamic;
 /// A dummy API implementation.
 pub mod empty;
 /// GLES API internals.
@@ -255,9 +258,12 @@ pub mod vulkan;
 
 pub mod auxil;
 pub mod api {
+    pub use super::empty::Api as Empty;
+
     #[cfg(dx12)]
     pub use super::dx12::Api as Dx12;
-    pub use super::empty::Api as Empty;
+    #[cfg(dynamic)]
+    pub use super::dynamic::Api as Dyn;
     #[cfg(gles)]
     pub use super::gles::Api as Gles;
     #[cfg(metal)]
@@ -265,14 +271,6 @@ pub mod api {
     #[cfg(vulkan)]
     pub use super::vulkan::Api as Vulkan;
 }
-
-mod dyndevice;
-pub use dyndevice::{
-    DynAccelerationStructure, DynAdapter, DynBindGroup, DynBindGroupLayout, DynBuffer,
-    DynCommandBuffer, DynCommandEncoder, DynComputePipeline, DynDevice, DynFence, DynInstance,
-    DynPipelineLayout, DynQuerySet, DynQueue, DynRenderPipeline, DynSampler, DynShaderModule,
-    DynSurface, DynSurfaceTexture, DynTexture, DynTextureView,
-};
 
 use std::{
     borrow::{Borrow, Cow},
@@ -439,11 +437,13 @@ pub trait Api: Clone + fmt::Debug + Sized {
     type PipelineLayout: fmt::Debug + WasmNotSendSync;
     type ShaderModule: fmt::Debug + WasmNotSendSync;
     type RenderPipeline: fmt::Debug + WasmNotSendSync;
-    type ComputePipeline: fmt::Debug + WasmNotSendSync;
+    type ComputePipeline: ComputePipeline;
     type PipelineCache: fmt::Debug + WasmNotSendSync;
 
     type AccelerationStructure: fmt::Debug + WasmNotSendSync + 'static;
 }
+
+pub trait ComputePipeline: Sized + WasmNotSendSync {}
 
 pub trait Instance: Sized + WasmNotSendSync {
     type A: Api;
