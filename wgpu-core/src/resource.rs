@@ -470,11 +470,11 @@ pub struct Buffer<A: HalApi> {
 
 impl<A: HalApi> Drop for Buffer<A> {
     fn drop(&mut self) {
-        if let Some(raw) = self.raw.take() {
+        if let Some(mut raw) = self.raw.take() {
             resource_log!("Destroy raw {}", self.error_ident());
             unsafe {
                 use hal::Device;
-                self.device.raw().destroy_buffer(raw);
+                self.device.raw().destroy_buffer(&mut raw);
             }
         }
     }
@@ -812,12 +812,12 @@ impl<A: HalApi> Drop for DestroyedBuffer<A> {
         }
         drop(deferred);
 
-        if let Some(raw) = self.raw.take() {
+        if let Some(mut raw) = self.raw.take() {
             resource_log!("Destroy raw Buffer (destroyed) {:?}", self.label());
 
             unsafe {
                 use hal::Device;
-                self.device.raw().destroy_buffer(raw);
+                self.device.raw().destroy_buffer(&mut raw);
             }
         }
     }
@@ -967,8 +967,8 @@ impl<A: HalApi> Drop for FlushedStagingBuffer<A> {
         use hal::Device;
         resource_log!("Destroy raw StagingBuffer");
         // SAFETY: We are in the Drop impl and we don't use self.raw anymore after this point.
-        let raw = unsafe { ManuallyDrop::take(&mut self.raw) };
-        unsafe { self.device.raw().destroy_buffer(raw) };
+        let mut raw = unsafe { ManuallyDrop::take(&mut self.raw) };
+        unsafe { self.device.raw().destroy_buffer(&mut raw) };
     }
 }
 
