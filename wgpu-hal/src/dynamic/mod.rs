@@ -1,6 +1,10 @@
+mod command;
+
 use wgt::WasmNotSendSync;
 
-use crate::{BufferBinding, CommandEncoder, Device};
+use crate::{BufferBinding, Device};
+
+pub use command::DynCommandEncoder;
 
 // TODO: docs
 pub trait DynResource: WasmNotSendSync + std::fmt::Debug + 'static {
@@ -45,40 +49,6 @@ impl<D: Device> DynDevice for D {
         // which as of writing is still being stabilized.
         let buffer = buffer.expect_downcast_mut();
         unsafe { self.destroy_buffer(buffer) };
-    }
-}
-
-pub trait DynCommandEncoder {
-    unsafe fn set_index_buffer<'a>(
-        &mut self,
-        binding: BufferBinding<'a, dyn DynBuffer>,
-        format: wgt::IndexFormat,
-    );
-
-    unsafe fn set_vertex_buffer<'a>(
-        &mut self,
-        index: u32,
-        binding: BufferBinding<'a, dyn DynBuffer>,
-    );
-}
-
-impl<C: CommandEncoder> DynCommandEncoder for C {
-    unsafe fn set_index_buffer<'a>(
-        &mut self,
-        binding: BufferBinding<'a, dyn DynBuffer>,
-        format: wgt::IndexFormat,
-    ) {
-        let binding = binding.expect_downcast();
-        unsafe { self.set_index_buffer(binding, format) };
-    }
-
-    unsafe fn set_vertex_buffer<'a>(
-        &mut self,
-        index: u32,
-        binding: BufferBinding<'a, dyn DynBuffer>,
-    ) {
-        let binding = binding.expect_downcast();
-        unsafe { self.set_vertex_buffer(index, binding) };
     }
 }
 
