@@ -31,8 +31,8 @@ impl<R: DynResource + ?Sized> DynResourceExt for R {
     }
 }
 
-// TODO: actually use this one
 pub trait DynBuffer: DynResource {}
+pub trait DynQuerySet: DynResource {}
 
 pub trait DynDevice {
     unsafe fn destroy_buffer(&self, buffer: Box<dyn DynBuffer>);
