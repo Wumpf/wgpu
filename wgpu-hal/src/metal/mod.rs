@@ -66,10 +66,29 @@ impl crate::Api for Api {
     type ShaderModule = ShaderModule;
     type RenderPipeline = RenderPipeline;
     type ComputePipeline = ComputePipeline;
-    type PipelineCache = ();
+    type PipelineCache = PipelineCache;
 
     type AccelerationStructure = AccelerationStructure;
 }
+
+crate::impl_dyn_resource!(
+    BindGroup,
+    BindGroupLayout,
+    Buffer,
+    CommandBuffer,
+    CommandEncoder,
+    ComputePipeline,
+    Fence,
+    PipelineCache,
+    PipelineLayout,
+    QuerySet,
+    RenderPipeline,
+    Sampler,
+    ShaderModule,
+    Surface,
+    Texture,
+    TextureView
+);
 
 pub struct Instance {
     managed_metal_layer_delegate: surface::HalManagedMetalLayerDelegate,
@@ -464,16 +483,6 @@ pub struct Buffer {
 unsafe impl Send for Buffer {}
 unsafe impl Sync for Buffer {}
 
-impl crate::DynResource for Buffer {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
 impl crate::DynBuffer for Buffer {}
 
 impl Buffer {
@@ -620,16 +629,6 @@ pub struct PipelineLayout {
     per_stage_map: MultiStageResources,
 }
 
-impl crate::DynResource for PipelineLayout {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
 impl crate::DynPipelineLayout for PipelineLayout {}
 
 trait AsNative {
@@ -705,16 +704,6 @@ pub struct BindGroup {
     textures: Vec<TexturePtr>,
 }
 
-impl crate::DynResource for BindGroup {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
 impl crate::DynBindGroup for BindGroup {}
 
 unsafe impl Send for BindGroup {}
@@ -780,16 +769,6 @@ pub struct RenderPipeline {
     depth_stencil: Option<(metal::DepthStencilState, wgt::DepthBiasState)>,
 }
 
-impl crate::DynResource for RenderPipeline {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
 impl crate::DynRenderPipeline for RenderPipeline {}
 
 unsafe impl Send for RenderPipeline {}
@@ -805,16 +784,6 @@ pub struct ComputePipeline {
     work_group_memory_sizes: Vec<u32>,
 }
 
-impl crate::DynResource for ComputePipeline {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
 impl crate::DynComputePipeline for ComputePipeline {}
 
 unsafe impl Send for ComputePipeline {}
@@ -826,16 +795,6 @@ pub struct QuerySet {
     //Metal has a custom buffer for counters.
     counter_sample_buffer: Option<metal::CounterSampleBuffer>,
     ty: wgt::QueryType,
-}
-
-impl crate::DynResource for QuerySet {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
 }
 
 impl crate::DynQuerySet for QuerySet {}
@@ -949,6 +908,9 @@ pub struct CommandBuffer {
 
 unsafe impl Send for CommandBuffer {}
 unsafe impl Sync for CommandBuffer {}
+
+#[derive(Debug)]
+pub struct PipelineCache;
 
 #[derive(Debug)]
 pub struct AccelerationStructure;
