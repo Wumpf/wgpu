@@ -510,6 +510,8 @@ pub struct Texture {
     copy_size: crate::CopyExtent,
 }
 
+impl crate::DynTexture for Texture {}
+
 unsafe impl Send for Texture {}
 unsafe impl Sync for Texture {}
 
@@ -518,6 +520,8 @@ pub struct TextureView {
     raw: metal::Texture,
     aspects: crate::FormatAspects,
 }
+
+impl crate::DynTextureView for TextureView {}
 
 unsafe impl Send for TextureView {}
 unsafe impl Sync for TextureView {}

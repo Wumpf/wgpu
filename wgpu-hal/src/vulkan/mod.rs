@@ -672,6 +672,8 @@ pub struct Texture {
     view_formats: Vec<wgt::TextureFormat>,
 }
 
+impl crate::DynTexture for Texture {}
+
 impl Texture {
     /// # Safety
     ///
@@ -687,6 +689,8 @@ pub struct TextureView {
     layers: NonZeroU32,
     attachment: FramebufferAttachment,
 }
+
+impl crate::DynTextureView for TextureView {}
 
 impl TextureView {
     /// # Safety
