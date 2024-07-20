@@ -268,10 +268,10 @@ pub mod api {
 
 mod dynamic;
 
-pub(crate) use dynamic::{impl_dyn_resource, DynResource};
+pub(crate) use dynamic::impl_dyn_resource;
 pub use dynamic::{
     DynBindGroup, DynBuffer, DynCommandEncoder, DynComputePipeline, DynDevice, DynPipelineLayout,
-    DynQuerySet, DynRenderPipeline, DynTexture, DynTextureView,
+    DynQuerySet, DynRenderPipeline, DynResource, DynTexture, DynTextureView,
 };
 
 use std::{
@@ -396,7 +396,7 @@ pub trait Api: Clone + fmt::Debug + Sized {
     type Device: Device<A = Self>;
 
     type Queue: Queue<A = Self>;
-    type CommandEncoder: CommandEncoder<A = Self>;
+    type CommandEncoder: CommandEncoder<A = Self> + DynResource; // TODO(#5124): require DynCommandEncoder
 
     /// This API's command buffer type.
     ///

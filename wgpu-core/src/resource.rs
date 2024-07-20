@@ -17,7 +17,6 @@ use crate::{
     Label, LabelHelpers, SubmissionIndex,
 };
 
-use hal::CommandEncoder;
 use smallvec::SmallVec;
 use thiserror::Error;
 
@@ -691,20 +690,18 @@ impl<A: HalApi> Buffer<A> {
                     buffer: staging_buffer.raw(),
                     usage: hal::BufferUses::MAP_WRITE..hal::BufferUses::COPY_SRC,
                 };
-                let transition_dst = hal::BufferBarrier {
+                let transition_dst = hal::BufferBarrier::<dyn hal::DynBuffer> {
                     buffer: raw_buf,
                     usage: hal::BufferUses::empty()..hal::BufferUses::COPY_DST,
                 };
                 let encoder = pending_writes.activate();
                 unsafe {
-                    encoder.transition_buffers(
-                        iter::once(transition_src).chain(iter::once(transition_dst)),
-                    );
+                    encoder.transition_buffers(&[transition_src, transition_dst]);
                     if self.size > 0 {
                         encoder.copy_buffer_to_buffer(
                             staging_buffer.raw(),
                             raw_buf,
-                            region.into_iter(),
+                            region.as_slice(),
                         );
                     }
                 }
@@ -972,8 +969,9 @@ pub struct FlushedStagingBuffer<A: HalApi> {
 }
 
 impl<A: HalApi> FlushedStagingBuffer<A> {
-    pub(crate) fn raw(&self) -> &A::Buffer {
-        &self.raw
+    pub(crate) fn raw(&self) -> &dyn hal::DynBuffer {
+        let buffer: &A::Buffer = &self.raw;
+        buffer
     }
 }
 
@@ -1170,7 +1168,7 @@ impl<A: HalApi> Texture<A> {
         desc: &'a wgt::TextureDescriptor<(), Vec<wgt::TextureFormat>>,
         mip_level: u32,
         depth_or_layer: u32,
-    ) -> &'a A::TextureView {
+    ) -> &'a dyn hal::DynTextureView {
         match *clear_mode {
             TextureClearMode::BufferCopy => {
                 panic!("Given texture is cleared with buffer copies, not render passes")
@@ -1398,7 +1396,11 @@ impl Global {
         if let Ok(cmd_buf) = hub.command_buffers.get(id.into_command_buffer_id()) {
             let mut cmd_buf_data = cmd_buf.data.lock();
             let cmd_buf_data = cmd_buf_data.as_mut().unwrap();
-            let cmd_buf_raw = cmd_buf_data.encoder.open().ok();
+            let cmd_buf_raw = cmd_buf_data
+                .encoder
+                .open()
+                .ok()
+                .and_then(|encoder| encoder.as_any_mut().downcast_mut());
             hal_command_encoder_callback(cmd_buf_raw)
         } else {
             hal_command_encoder_callback(None)

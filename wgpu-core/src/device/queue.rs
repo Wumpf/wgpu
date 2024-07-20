@@ -291,7 +291,7 @@ impl<A: HalApi> PendingWrites<A> {
         }
     }
 
-    pub fn activate(&mut self) -> &mut A::CommandEncoder {
+    pub fn activate(&mut self) -> &mut dyn hal::DynCommandEncoder {
         if !self.is_recording {
             unsafe {
                 self.command_encoder
@@ -583,11 +583,12 @@ impl Global {
             buffer: staging_buffer.raw(),
             usage: hal::BufferUses::MAP_WRITE..hal::BufferUses::COPY_SRC,
         })
-        .chain(transition.map(|pending| pending.into_hal(&dst, &snatch_guard)));
+        .chain(transition.map(|pending| pending.into_hal(&dst, &snatch_guard)))
+        .collect::<Vec<_>>();
         let encoder = pending_writes.activate();
         unsafe {
-            encoder.transition_buffers(barriers);
-            encoder.copy_buffer_to_buffer(staging_buffer.raw(), dst_raw, iter::once(region));
+            encoder.transition_buffers(&barriers);
+            encoder.copy_buffer_to_buffer(staging_buffer.raw(), dst_raw, &[region]);
         }
 
         pending_writes.insert_buffer(&dst);
@@ -805,24 +806,26 @@ impl Global {
 
         let staging_buffer = staging_buffer.flush();
 
-        let regions = (0..array_layer_count).map(|rel_array_layer| {
-            let mut texture_base = dst_base.clone();
-            texture_base.array_layer += rel_array_layer;
-            hal::BufferTextureCopy {
-                buffer_layout: wgt::ImageDataLayout {
-                    offset: rel_array_layer as u64
-                        * block_rows_per_image as u64
-                        * stage_bytes_per_row as u64,
-                    bytes_per_row: Some(stage_bytes_per_row),
-                    rows_per_image: Some(block_rows_per_image),
-                },
-                texture_base,
-                size: hal_copy_size,
-            }
-        });
+        let regions = (0..array_layer_count)
+            .map(|rel_array_layer| {
+                let mut texture_base = dst_base.clone();
+                texture_base.array_layer += rel_array_layer;
+                hal::BufferTextureCopy {
+                    buffer_layout: wgt::ImageDataLayout {
+                        offset: rel_array_layer as u64
+                            * block_rows_per_image as u64
+                            * stage_bytes_per_row as u64,
+                        bytes_per_row: Some(stage_bytes_per_row),
+                        rows_per_image: Some(block_rows_per_image),
+                    },
+                    texture_base,
+                    size: hal_copy_size,
+                }
+            })
+            .collect::<Vec<_>>();
 
         {
-            let barrier = hal::BufferBarrier {
+            let buffer_barrier = hal::BufferBarrier {
                 buffer: staging_buffer.raw(),
                 usage: hal::BufferUses::MAP_WRITE..hal::BufferUses::COPY_SRC,
             };
@@ -832,10 +835,14 @@ impl Global {
                 trackers
                     .textures
                     .set_single(&dst, selector, hal::TextureUses::COPY_DST);
+            let texture_barriers = transition
+                .map(|pending| pending.into_hal(dst_raw))
+                .collect::<Vec<_>>();
+
             unsafe {
-                encoder.transition_textures(transition.map(|pending| pending.into_hal(dst_raw)));
-                encoder.transition_buffers(iter::once(barrier));
-                encoder.copy_buffer_to_texture(staging_buffer.raw(), dst_raw, regions);
+                encoder.transition_textures(&texture_barriers);
+                encoder.transition_buffers(&[buffer_barrier]);
+                encoder.copy_buffer_to_texture(staging_buffer.raw(), dst_raw, &regions);
             }
         }
 
@@ -1285,9 +1292,12 @@ impl Global {
                                 .set_from_usage_scope_and_drain_transitions(
                                     &used_surface_textures,
                                     &snatch_guard,
-                                );
+                                )
+                                .collect::<Vec<_>>();
+                            let baked_encoder_dyn: &mut dyn hal::DynCommandEncoder =
+                                &mut baked.encoder; // TODO(#5124) temporary
                             let present = unsafe {
-                                baked.encoder.transition_textures(texture_barriers);
+                                baked_encoder_dyn.transition_textures(&texture_barriers);
                                 baked.encoder.end_encoding().unwrap()
                             };
                             baked.list.push(present);
@@ -1340,11 +1350,12 @@ impl Global {
                         .set_from_usage_scope_and_drain_transitions(
                             &used_surface_textures,
                             &snatch_guard,
-                        );
+                        )
+                        .collect::<Vec<_>>();
+                    let encoder: &mut dyn hal::DynCommandEncoder =
+                        &mut pending_writes.command_encoder; // TODO(#5124) temporary
                     unsafe {
-                        pending_writes
-                            .command_encoder
-                            .transition_textures(texture_barriers);
+                        encoder.transition_textures(&texture_barriers);
                     };
                 }
             }
