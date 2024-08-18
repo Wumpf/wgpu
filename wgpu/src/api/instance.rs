@@ -44,7 +44,7 @@ impl Instance {
     ///
     /// TODO: Right now it's otherwise not possible yet to opt-out of all features on some platforms.
     /// See <https://github.com/gfx-rs/wgpu/issues/3514>
-    /// * Windows/Linux/Android: always enables Vulkan and GLES with no way to opt out
+    /// * Windows/Linux/Android: always enables Vulkan with no way to opt out
     pub const fn enabled_backend_features() -> Backends {
         let mut backends = Backends::empty();
 
@@ -55,11 +55,14 @@ impl Instance {
             if cfg!(dx12) {
                 backends = backends.union(Backends::DX12);
             }
+            if cfg!(gl) {
+                backends = backends.union(Backends::GL);
+            }
 
-            // Windows, Android, Linux currently always enable Vulkan and OpenGL.
+            // Windows, Android, Linux currently always enable Vulkan.
             // See <https://github.com/gfx-rs/wgpu/issues/3514>
             if cfg!(target_os = "windows") || cfg!(unix) {
-                backends = backends.union(Backends::VULKAN).union(Backends::GL);
+                backends = backends.union(Backends::VULKAN);
             }
 
             // Vulkan on Mac/iOS is only available through vulkan-portability.
@@ -67,11 +70,6 @@ impl Instance {
                 && cfg!(feature = "vulkan-portability")
             {
                 backends = backends.union(Backends::VULKAN);
-            }
-
-            // GL on Mac is only available through angle.
-            if cfg!(target_os = "macos") && cfg!(feature = "angle") {
-                backends = backends.union(Backends::GL);
             }
         } else {
             if cfg!(webgpu) {

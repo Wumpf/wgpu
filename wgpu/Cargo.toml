@@ -29,16 +29,19 @@ ignored = ["cfg_aliases"]
 [lib]
 
 [features]
-default = ["wgsl", "dx12", "metal", "webgpu"]
+default = ["wgsl", "dx12", "metal", "gl", "webgpu"]
 
 #! ### Backends
 # --------------------------------------------------------------------
 #! ⚠️ WIP: Not all backends can be manually configured today.
-#! On Windows, Linux & Android the Vulkan & GLES backends are always enabled.
+#! On Windows, Linux & Android the Vulkan backend is always enabled.
 #! See [#3514](https://github.com/gfx-rs/wgpu/issues/3514) for more details.
 
 ## Enables the DX12 backend on Windows.
 dx12 = ["wgc?/dx12"]
+
+## Enables the GL/GLES backend on Windows, Linux & Android.
+gl = ["wgc?/gles_windows", "wgc?/gles_linux", "wgc?/gles_android"]
 
 ## Enables the Metal backend on macOS & iOS.
 metal = ["wgc?/metal"]
@@ -47,7 +50,7 @@ metal = ["wgc?/metal"]
 webgpu = ["naga?/wgsl-out"]
 
 ## Enables the GLES backend via [ANGLE](https://github.com/google/angle) on macOS using.
-angle = ["wgc?/gles"]
+angle = ["wgc?/gles_macos"]
 
 ## Enables the Vulkan backend on macOS & iOS.
 vulkan-portability = ["wgc?/vulkan"]
@@ -55,7 +58,7 @@ vulkan-portability = ["wgc?/vulkan"]
 ## Enables the GLES backend on Wasm
 ##
 ## * ⚠️ WIP: Currently will also enable GLES dependencies on any other targets.
-webgl = ["dep:hal", "wgc/gles"]
+webgl = ["dep:hal", "wgc/webgl"]
 
 #! **Note:** In the documentation, if you see that an item depends on a backend,
 #! it means that the item is only available when that backend is enabled _and_ the backend
@@ -134,11 +137,6 @@ features = ["raw-window-handle"]
 # enable the Metal backend while being no-op on other targets.
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.wgc]
 workspace = true
-
-# We want the wgpu-core Direct3D backend and OpenGL (via WGL) on Windows.
-[target.'cfg(windows)'.dependencies.wgc]
-workspace = true
-features = ["gles"]
 
 # We want the wgpu-core Vulkan backend on Unix (but not emscripten, macOS, iOS) and Windows.
 [target.'cfg(any(windows, all(unix, not(target_os = "emscripten"), not(target_os = "ios"), not(target_os = "macos"))))'.dependencies.wgc]
