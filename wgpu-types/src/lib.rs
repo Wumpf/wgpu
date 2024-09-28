@@ -171,8 +171,8 @@ bitflags::bitflags! {
         ///
         /// The WebGPU backend is special in several ways:
         /// It is not not implemented by `wgpu_core` and instead by the higher level `wgpu` crate.
-        /// Whether WebGPU is targeted is decided upon the creation of the `wgpu::Instance`,
-        /// *not* upon adapter creation. See `wgpu::Instance::new`.
+        /// The `wgpu::Instance` dispatches to both `wgpu_core` and the `wgpu`-based webgpu implementation
+        /// depending on the enabled backends.
         const BROWSER_WEBGPU = 1 << Backend::BrowserWebGpu as u32;
         /// All the apis that wgpu offers first tier of support for.
         ///
@@ -7400,7 +7400,7 @@ pub enum Gles3MinorVersion {
 }
 
 /// Options for creating an instance.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InstanceDescriptor {
     /// Which `Backends` to enable.
     pub backends: Backends,

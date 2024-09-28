@@ -361,6 +361,13 @@ impl ContextWgpuCore {
 
         format!("Validation Error\n\nCaused by:\n{}", output)
     }
+
+    pub fn poll_all_devices(&self, force_wait: bool) -> bool {
+        match self.0.poll_all_devices(force_wait) {
+            Ok(all_queue_empty) => all_queue_empty,
+            Err(err) => self.handle_error_fatal(err, "Device::poll"),
+        }
+    }
 }
 
 fn map_buffer_copy_view(view: crate::ImageCopyBuffer<'_>) -> wgc::command::ImageCopyBuffer {
@@ -639,13 +646,6 @@ impl crate::Context for ContextWgpuCore {
             error_sink,
         };
         ready(Ok((device, queue)))
-    }
-
-    fn instance_poll_all_devices(&self, force_wait: bool) -> bool {
-        match self.0.poll_all_devices(force_wait) {
-            Ok(all_queue_empty) => all_queue_empty,
-            Err(err) => self.handle_error_fatal(err, "Device::poll"),
-        }
     }
 
     fn adapter_is_surface_supported(

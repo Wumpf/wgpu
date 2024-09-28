@@ -1296,11 +1296,6 @@ impl crate::context::Context for ContextWebGpu {
         )
     }
 
-    fn instance_poll_all_devices(&self, _force_wait: bool) -> bool {
-        // Devices are automatically polled.
-        true
-    }
-
     fn adapter_is_surface_supported(
         &self,
         _adapter_data: &Self::AdapterData,

@@ -171,6 +171,7 @@ optional = true
 arrayvec.workspace = true
 document-features.workspace = true
 log.workspace = true
+once_cell.workspace = true
 parking_lot.workspace = true
 profiling.workspace = true
 raw-window-handle = { workspace = true, features = ["std"] }

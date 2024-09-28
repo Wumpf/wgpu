@@ -76,7 +76,6 @@ pub trait Context: Debug + WasmNotSendSync + Sized {
         desc: &DeviceDescriptor<'_>,
         trace_dir: Option<&std::path::Path>,
     ) -> Self::RequestDeviceFuture;
-    fn instance_poll_all_devices(&self, force_wait: bool) -> bool;
     fn adapter_is_surface_supported(
         &self,
         adapter_data: &Self::AdapterData,
@@ -771,7 +770,6 @@ pub(crate) trait DynContext: Debug + WasmNotSendSync {
         trace_dir: Option<&std::path::Path>,
     ) -> Pin<AdapterRequestDeviceFuture>;
 
-    fn instance_poll_all_devices(&self, force_wait: bool) -> bool;
     fn adapter_is_surface_supported(
         &self,
         adapter_data: &crate::Data,
@@ -1386,10 +1384,6 @@ where
                 queue_data: Box::new(queue_data) as _,
             })
         })
-    }
-
-    fn instance_poll_all_devices(&self, force_wait: bool) -> bool {
-        Context::instance_poll_all_devices(self, force_wait)
     }
 
     fn adapter_is_surface_supported(

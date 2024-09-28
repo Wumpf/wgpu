@@ -3574,6 +3574,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
+ "once_cell",
  "parking_lot",
  "profiling",
  "raw-window-handle 0.6.2",
