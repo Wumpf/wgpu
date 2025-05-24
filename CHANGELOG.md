@@ -38,7 +38,7 @@ Bottom level categories:
 - Hal
 -->
 
-## Unreleased
+## v24.0.5 (2025-05-24)
 
 ### Bug Fixes
 

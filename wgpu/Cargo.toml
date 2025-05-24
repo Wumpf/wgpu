@@ -1,6 +1,6 @@
 [package]
 name = "wgpu"
-version.workspace = true
+version = "24.0.5"
 authors.workspace = true
 edition.workspace = true
 description = "Cross-platform, safe, pure-rust graphics API"
